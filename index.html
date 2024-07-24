@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Sketchpad</title>
+        <!-- Bootstrap CSS -->
+        <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="./css/style.css">
+
+        <style>
+            html,
+            body {
+                height: 100%;
+                margin: 0;
+            }
+
+            .bg {
+                animation: slide 3s ease-in-out infinite alternate;
+                background-image: linear-gradient(-60deg, #6c3 50%, #09f 50%);
+                bottom: 0;
+                left: -50%;
+                opacity: .5;
+                position: fixed;
+                right: -50%;
+                top: 0;
+                z-index: -1;
+            }
+
+            .bg2 {
+                animation-direction: alternate-reverse;
+                animation-duration: 4s;
+            }
+
+            .bg3 {
+                animation-duration: 5s;
+            }
+
+            .content {
+                background-color: rgba(255, 255, 255, .8);
+                border-radius: .25em;
+                box-shadow: 0 0 .25em rgba(0, 0, 0, .25);
+                box-sizing: border-box;
+                padding: 2rem;
+                position: absolute;
+                left: 50%;
+                top: 50%;
+                transform: translate(-50%, -50%);
+                width: 80%;
+                max-width: 800px;
+                text-align: center;
+            }
+
+            h1 {
+                font-family: monospace;
+            }
+
+            @keyframes slide {
+                0% {
+                    transform: translateX(-25%);
+                }
+
+                100% {
+                    transform: translateX(25%);
+                }
+            }
+
+            .nav-link {
+                margin-right: 1rem;
+            }
+
+            .modal-content {
+                border-radius: .5rem;
+            }
+
+            .modal-backdrop {
+                display: none;
+            }
+
+
+            @media (max-width: 980px) {
+                #sketchpad {
+                    width: 400px;
+                    height: 400px;
+                }
+            }
+
+            #sketchpad {
+                display: block;
+                position: relative;
+                z-index: 1;
+                /* Ensure the canvas is above the grid */
+            }
+
+            .grid-overlay {
+                position: absolute;
+                background-color: aliceblue;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: 980px;
+                z-index: 0;
+                /* Ensure the grid is behind the canvas */
+                pointer-events: none;
+                background-image: linear-gradient(to right, #ccc 1px, transparent 1px),
+                    linear-gradient(to bottom, #ccc 1px, transparent 1px);
+                background-size: 20px 20px;
+            }
+        </style>
+    </head>
+
+    <body>
+        <nav class="navbar navbar-expand-lg navbar-light bg-light">
+            <a class="navbar-brand" href="#">Sketchpad</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav">
+                    <li class="nav-item"><a class="nav-link" href="#">Home</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">About</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">Contact</a></li>
+                </ul>
+            </div>
+        </nav>
+
+        <div class="container-fluid mt-4">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="bg-light p-3 rounded">
+                        <h4>Tools</h4>
+                        <div class="form-group">
+                            <label for="custom_framework">Framework</label>
+                            <select class="form-control" id="custom_framework">
+                                <option value="bootstrap">Bootstrap</option>
+                                <option value="twincss">TwinCSS</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <button id="showColorsButton" class="btn btn-primary mb-2">Show Colors</button>
+                        <button id="clearbutton" class="btn btn-warning mb-2">Clear Canvas</button>
+                        <button id="showstrokes" class="btn btn-info mb-2">Toggle Saving Strokes</button>
+                        <button id="undobutton" class="btn btn-secondary mb-2">Undo</button>
+                        <button id="redobutton" class="btn btn-secondary mb-2">Redo</button>
+                        <button id="add_section" class="btn btn-success">Add Section</button>
+                        <fieldset>
+                            <legend>section parts:</legend>
+                            <!-- Add this div to hold section buttons -->
+                            <div id="page_section" class="container mt-2 gap-md-1"></div>
+                        </fieldset>
+
+
+                    </div>
+                </div>
+                <div class=" col-md-9">
+                    <div class="canvas-container mb-4 position-relative">
+                        <canvas id="sketchpad" width="980" height="400" class="border"></canvas>
+                        <div class="grid-overlay"></div>
+                    </div>
+                    <div class="rendered-html bg-light p-3 rounded">
+                        <h4>Rendered HTML</h4>
+                        <div id="render">This section displays the rendered HTML content.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg"></div>
+        <div class="bg bg2"></div>
+        <div class="bg bg3"></div>
+
+        <!-- Modals -->
+        <div class="modal fade" id="sectionModal" tabindex="-1" role="dialog" aria-labelledby="sectionModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="sectionModalLabel">Enter Section Name</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="text" class="form-control" id="sectionNameInput"
+                            placeholder="e.g., about, navbar, contact">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" id="submitSectionName">Add
+                            Section</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="colorModal" tabindex="-1" role="dialog" aria-labelledby="colorModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="colorModalLabel">Select Colors</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="color1">Background Color</label>
+                            <input type="color" id="color1" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="color2">Border Color</label>
+                            <input type="color" id="color2" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="color3">Button Color</label>
+                            <input type="color" id="color3" class="form-control">
+                        </div>
+                        <div class="form-group">
+                            <label for="color4">Hover Color</label>
+                            <input type="color" id="color4" class="form-control">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="otherModal" tabindex="-1" role="dialog" aria-labelledby="otherModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="otherModalLabel">Enter Custom Framework</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="text" class="form-control" id="customFrameworkInput"
+                            placeholder="Enter framework name">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-primary" id="saveCustomFramework">Save</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import map for Google Generative AI -->
+        <script type="importmap">
+    {
+        "imports": {
+            "@google/generative-ai": "https://esm.run/@google/generative-ai"
+        }
+    }
+    </script>
+
+        <!-- sicript with notyf -->
+        <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
+
+        <!-- User imported libs -->
+        <script type="module" src="./back_js/highleft.js"></script>
+
+        <!-- Bootstrap JS, Popper.js, and jQuery -->
+        <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+        <script>
+            // Show color selectors modal
+            $('#showColorsButton').on('click', function () {
+                $('#colorModal').modal('show');
+            });
+
+            // Show a color selected modal
+            $('.color').on('change', function () {
+                $('#colorModal').modal('hide');
+                alert("Color selected: " + this.value);
+            });
+
+            // Show custom framework modal when "other" is selected
+            $('#custom_framework').on('change', function () {
+                if (this.value === 'other') {
+                    $('#otherModal').modal('show');
+                }
+            });
+
+            // Handle save custom framework
+            $('#saveCustomFramework').on('click', function () {
+                const customFrameworkInput = $('#customFrameworkInput').val();
+                if (customFrameworkInput) {
+                    console.log('Custom Framework:', customFrameworkInput);
+                    $('#otherModal').modal('hide');
+                }
+            });
+        </script>
+    </body>
+
+</html>
