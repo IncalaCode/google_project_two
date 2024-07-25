@@ -156,3 +156,116 @@
                 text-decoration: none;
                 cursor: pointer;
             }
+
+            .container-fluid {
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+            }
+
+
+
+
+            .preview-container {
+                flex: 1;
+                padding: 0;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+
+            }
+
+
+            textarea {
+                width: 100%;
+                height: 100%;
+                resize: none;
+                font-family: 'Courier New', Courier, monospace;
+                font-size: 14px;
+                line-height: 1.5;
+                border: none;
+                padding: 10px;
+                box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+                margin: 0;
+            }
+
+
+
+
+
+            .browser-window {
+                border: 2px solid #ccc;
+                border-radius: 4px;
+                background-color: #fff;
+                overflow: hidden;
+                height: 500px;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .browser-header {
+                padding: 10px;
+                background: #f1f1f1;
+                border-bottom: 2px solid #ccc;
+                display: flex;
+                align-items: center;
+            }
+
+            .browser-header .dots {
+                display: flex;
+                align-items: center;
+            }
+
+            .browser-header .dot {
+                margin: 0 4px;
+                height: 12px;
+                width: 12px;
+                background-color: #bbb;
+                border-radius: 50%;
+            }
+
+            .browser-header .dot.red {
+                background-color: #ED594A;
+            }
+
+            .browser-header .dot.yellow {
+                background-color: #FDD800;
+            }
+
+            .browser-header .dot.green {
+                background-color: #5AC05A;
+            }
+
+            .browser-header .url-bar {
+                flex-grow: 1;
+                margin: 0 15px;
+            }
+
+            .browser-header input[type=text] {
+                width: 100%;
+                border-radius: 3px;
+                border: 1px solid #ccc;
+                height: 25px;
+                padding: 5px;
+                box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+            }
+
+            .iframe-container {
+                flex: 1;
+            }
+
+            iframe {
+                width: 100%;
+                height: 100%;
+                border: none;
+            }
+
+            @media (max-width: 768px) {
+
+
+                .preview-container {
+                    width: 100%;
+                    height: calc(50vh - 20px);
+                    /* Adjust for padding */
+                }
+            }

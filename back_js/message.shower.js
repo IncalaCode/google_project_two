@@ -57,13 +57,9 @@ class Notyfclass {
                 </div>
             </div>` : ''),
         });
-        this.data_type(0)
 
     }
 
-    data_type(value) {
-        document.getElementById('display_list').setAttribute('data-type', value);
-    }
 
     dismiss(type, Message) {
         if (this.loadingNotification) {

@@ -2,10 +2,95 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import * as sketchpad from './sekechpad.js';
 import NotyfService from "./message.shower.js";
 
+class EditorManager {
+    constructor(editorContainerId, outputFrameId) {
+        this.editorContainerId = editorContainerId;
+        this.outputFrameId = outputFrameId;
+        this.editor = null;
+        this.outputFrame = null;
+        this.initializeEditor();
+    }
+
+    initializeEditor() {
+        document.addEventListener('DOMContentLoaded', () => {
+            const editorContainer = document.getElementById(this.editorContainerId);
+            if (!editorContainer) {
+                console.error(`Editor container with ID '${this.editorContainerId}' not found.`);
+                return;
+            }
+
+            this.outputFrame = document.getElementById(this.outputFrameId);
+            if (!this.outputFrame) {
+                console.error(`Output frame with ID '${this.outputFrameId}' not found.`);
+                return;
+            }
+
+            if (!this.editor) {
+                require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.33.0/min/vs' } });
+                require(['vs/editor/editor.main'], () => {
+                    this.editor = monaco.editor.create(editorContainer, {
+                        language: 'html',
+                        theme: 'vs-dark'
+                    });
+                    this.editor.onDidChangeModelContent(() => {
+                        this.updatePreview();
+                    });
+                });
+            } else {
+                console.warn('Editor already initialized.');
+            }
+        });
+    }
+    insertValue(value) {
+        if (!this.editor) {
+            console.error('Editor not initialized.');
+            return;
+        }
+        const model = this.editor.getModel();
+        if (!model) {
+            console.error('Model not found.');
+            return;
+        }
+        const position = this.editor.getPosition();
+        const range = {
+            startLineNumber: position.lineNumber,
+            startColumn: position.column,
+            endLineNumber: position.lineNumber,
+            endColumn: position.column
+        };
+        model.applyEdits([{
+            range: range,
+            text: value
+        }]);
+    }
+
+    updatePreview() {
+        if (!this.editor) {
+            console.error('Editor not initialized.');
+            return;
+        }
+        const code = this.editor.getValue();
+        const preview = this.outputFrame.contentDocument || this.outputFrame.contentWindow.document;
+        preview.open();
+        preview.write(code);
+        preview.close();
+    }
+    clearEditor() {
+        if (!this.editor) {
+            console.error('Editor not initialized.');
+            return;
+        }
+
+        try {
+            this.editor.setValue(''); // Set editor content to an empty string
+            console.log('Editor content cleared.');
+        } catch (error) {
+            console.error('Error clearing the editor content:', error);
+        }
+    }
+}
 export default class ImportAI {
-
     static whole = {
-
         head: {
             meta: [
                 '<meta charset="UTF-8">',
@@ -19,23 +104,17 @@ export default class ImportAI {
             section: {}
         },
         script: [],
-    }
+    };
 
-    constructor() {
-        this.genAI = new GoogleGenerativeAI("AIzaSyDTYPNXHwNE5nA5-uHRnBhS_mCXJSoDHXQ"); // Replace with your actual API key
-        // The Gemini 1.5 models are versatile and work with both text-only and multimodal prompts
+    constructor(editorContainerId, outputFrameId) {
+        this.genAI = new GoogleGenerativeAI("AIzaSyDTYPNXHwNE5nA5-uHRnBhS_mCXJSoDHXQ");
         this.model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        this.editorManager = new EditorManager("monaco-editor", "output");
     }
 
-    // Function to convert a base64-encoded image string to a GoogleGenerativeAI.Part object
     async fileToGenerativePart(imageDataUrl) {
-        // Split the base64-encoded data from the data URL
         const base64EncodedData = imageDataUrl.split(',')[1];
-
-        // Determine the MIME type from the data URL
         const mimeType = imageDataUrl.split(':')[1].split(';')[0];
-
-        // Return GenerativeAI.Part object with inline data
         return {
             inlineData: { data: base64EncodedData, mimeType: mimeType },
         };
@@ -44,7 +123,6 @@ export default class ImportAI {
     async generate() {
         console.log('Debug Info:', sketchpad.strokes, sketchpad.sections, ImportAI.whole);
 
-        // Extract the last stroke and its associated image data
         const lastStrokeIndex = sketchpad.strokes.length - 1;
         const lastStroke = sketchpad.strokes[lastStrokeIndex] || [null, null];
         const lastStrokeData = lastStroke[0];
@@ -55,12 +133,14 @@ export default class ImportAI {
             return null;
         }
 
+
         const prompt = `
         You are an expert in math and geometry, as well as in frontend and backend development for professional websites that use user input and image analysis. Your task is to generate a specific HTML object based on the following details:
         
         - Depend on the user instructions or inputs, which are provided in the strokes data: ${JSON.stringify(this.collectValues())}.
         - Calculate the width and height of the object based on the provided information.
         - Analyze the image to identify the drawn object, considering the calculated start, move, and end positions.
+        - analyze the postion to identify the action if there was object there and the user is asking for update or insert or delete.
         - Generate the HTML code for this object.
         - Split or classify the HTML code into three parts: the specific object HTML, additional CSS styling, and the script.
         - If the object is not found in the section history, determine the appropriate action (insert, update, or delete).
@@ -74,22 +154,23 @@ export default class ImportAI {
         Remember the following:
         1. If the action is update or delete, you will put the exact name of the object to be updated or deleted.
         2. If you cannot find the object, search for it in the history.
-        3. Before an insert action, check that the it update or delelet by checking  that it postion of the object and seaeching
-        from the history frist and if it doesnt exiest conrinue as insert otherwise take the object name and retuen it in update formate or delecte formate.
+        3. Before an insert action, check that the it update or delete by checking the position of the object and searching from the history first, and if it doesn't exist continue as insert, otherwise take the object name and return it in update format or delete format.
+        4. Don't include integrity and crossorigin, only source in the CSS link and the JS link (script).
+
         Use this format for insert:
         {
             "html_code": {
                 "html": "html_code_here",
                 "style": "object_css_code",
-                "script": "object_script_code with their tags",
-                "link": "object_link_code with their tags"
+                            "script": ["object_script_code with their tags","add all script needed for this if it does not exeist in history.script"],
+                "link": ["object_link_code with their tags","add all script needed for this if it does not exeist in history.script"]
             },
             "position": {
                 "top": object_top
             },
             "action": "insert",
-            "object_name": "object_name"
-            "image_decription":
+            "object_name": "object_name",
+            "image_description": ""
         }
 
         Use this format for update:
@@ -97,8 +178,8 @@ export default class ImportAI {
             "html_code": {
                 "html": "html_code_here",
                 "style": "object_css_code",
-                "script": "object_script_code with their tags",
-                "link": "object_link_code with their tags"
+                "script": ["object_script_code with their tags","add all script needed for this if it does not exeist in history.script"],
+                "link": ["object_link_code with their tags","add all script needed for this if it does not exeist in history.script"]
             },
             "position": {
                 "top": object_top
@@ -124,30 +205,25 @@ export default class ImportAI {
         History: ${JSON.stringify(ImportAI.whole)}
         `;
 
-
-
         console.log('Generated Prompt:', prompt);
 
         try {
-            // Generate content using the prompt and image
-            var result = await this.model.generateContent([prompt, image]);
-
-            // Extract text response from the result
+            const result = await this.model.generateContent([prompt, image]);
             const responseText = await result.response.text();
-            result = this.parseJsonFromText(responseText)
-            console.log('Generated Content:', result);
+            const parsedResult = this.parseJsonFromText(responseText);
+            console.log('Generated Content:', parsedResult);
 
-            this.applyChanges(result, lastStrokeIndex)
+            this.applyChanges(parsedResult, lastStrokeIndex);
 
             return this.joinlist();
         } catch (error) {
             console.error('Error generating content:', error);
+            NotyfService.showMessage("error", 'Content generation failed due to policy restrictions.', false);
             return null;
         }
     }
 
     applyChanges(generatedContent, lastStrokeIndex) {
-
         switch (generatedContent.action) {
             case 'insert':
                 this.insertElement(generatedContent, lastStrokeIndex);
@@ -159,50 +235,50 @@ export default class ImportAI {
                 this.deleteElement(generatedContent, lastStrokeIndex);
                 break;
             default:
-                NotyfService.showMessage("error", 'Unknown action:' + generatedContent.action, false);
+                NotyfService.showMessage("error", 'Unknown action: ' + generatedContent.action, false);
         }
     }
 
-
-    insertElement(generatedContent, lastStrokeIndex, update_object) {
-        ImportAI.whole.body.section[update_object || `${lastStrokeIndex}`] = generatedContent.html_code.html
-        ImportAI.whole.head.link[update_object || `${lastStrokeIndex}`] = generatedContent.html_code.link
-        ImportAI.whole.head.style[update_object || `${lastStrokeIndex}`] = generatedContent.html_code.style
-        ImportAI.whole.script[update_object || `${lastStrokeIndex}`] = generatedContent.html_code.script
-        ImportAI.whole.head.style[update_object || `${lastStrokeIndex}`] = generatedContent.html_code.style
+    insertElement(generatedContent, lastStrokeIndex, updateObject) {
+        ImportAI.whole.body.section[updateObject || `${lastStrokeIndex}`] = generatedContent.html_code.html;
+        ImportAI.whole.head.link[updateObject || `${lastStrokeIndex}`] = generatedContent.html_code.link;
+        ImportAI.whole.head.style[updateObject || `${lastStrokeIndex}`] = generatedContent.html_code.style;
+        ImportAI.whole.script[updateObject || `${lastStrokeIndex}`] = generatedContent.html_code.script;
     }
+
     updateElement(generatedContent, lastStrokeIndex) {
-        this.insertElement(generatedContent, lastStrokeIndex, generatedContent.object_name)
-    }
-    deleteElement(generatedContent, lastStrokeIndex) {
-        ImportAI.whole.body.section[update_object || `${lastStrokeIndex}`] = ""
-        ImportAI.whole.head.link[update_object || `${lastStrokeIndex}`] = ""
-        ImportAI.whole.head.style[update_object || `${lastStrokeIndex}`] = ""
-        ImportAI.whole.script[update_object || `${lastStrokeIndex}`] = ""
-        ImportAI.whole.head.style[update_object || `${lastStrokeIndex}`] = ""
+        this.insertElement(generatedContent, lastStrokeIndex, generatedContent.object_name);
     }
 
+    deleteElement(generatedContent, lastStrokeIndex) {
+        ImportAI.whole.body.section[generatedContent.object_name] = "";
+        ImportAI.whole.head.link[generatedContent.object_name] = "";
+        ImportAI.whole.head.style[generatedContent.object_name] = "";
+        ImportAI.whole.script[generatedContent.object_name] = "";
+    }
 
     parseJsonFromText(text) {
         try {
             const startIndex = text.indexOf('{');
             const endIndex = text.lastIndexOf('}');
             const trimmedJsonData = text.substring(startIndex, endIndex + 1);
-            const parsedData = JSON.parse(trimmedJsonData.trim());
-            return parsedData;
+            return JSON.parse(trimmedJsonData.trim());
         } catch (error) {
             console.error('Error parsing JSON:', error);
             console.error('Input text:', text);
             return null;
         }
     }
+
+
+
     collectValues() {
         const framework = $('#custom_framework').val();
         const customFrameworkInput = $('#customFrameworkInput').val();
         const back_ground_color = $('#color1').val();
         const border_color = $('#color2').val();
         const button_color = $('#color3').val();
-        const hover_color = $('#color4').val();
+        const text_color = $('#color4').val();
 
         const collectedValues = {
             framework,
@@ -211,15 +287,13 @@ export default class ImportAI {
                 back_ground_color,
                 border_color,
                 button_color,
-                hover_color
+                text_color
             }
         };
 
         console.log('Collected Values:', collectedValues);
-        return collectedValues
-        // You can perform any action with the collected values here
+        return collectedValues;
     }
-
 
     joinlist() {
         const headContent = [
@@ -230,23 +304,25 @@ export default class ImportAI {
         ].join('\n');
 
         const bodyContent = Object.values(ImportAI.whole.body.section).join('\n');
-        const scripts = ImportAI.whole.script.length > 0 ? `<script>${ImportAI.whole.script.join('\n')}</script>` : '';
+        const scripts = ImportAI.whole.script.length > 0 ? `${ImportAI.whole.script.join('\n')}` : '';
 
         const htmlContent = `
-    <!DOCTYPE html>
-        <html lang="en">
-            <head>
-                ${headContent}
-            </head>
-            <body>
-                ${bodyContent}
-                ${scripts}
-            </body>
-            </html>
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        ${headContent}
+    </head>
+    <body>
+        ${bodyContent}
+        ${scripts}
+    </body>
+</html>
         `;
 
         // Render the generated HTML content
-        document.getElementById('render').innerHTML = htmlContent;
+        this.editorManager.clearEditor()
+        this.editorManager.insertValue(htmlContent);
+        this.editorManager.updatePreview();
     }
-
 }
+
